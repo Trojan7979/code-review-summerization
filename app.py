@@ -215,5 +215,3 @@ if st.session_state.extracted_text or st.session_state.summary:
                 file_name="summary.txt",
                 mime="text/plain"
             )
-
-#
