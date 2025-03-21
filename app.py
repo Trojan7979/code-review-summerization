@@ -6,6 +6,7 @@ import speech_recognition as sr
 from langchain_community.llms import HuggingFaceHub
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+from GitHub_integration import get_github_content
 
 # Set page configuration
 st.set_page_config(page_title="Video Text Extractor & Summarizer", layout="wide")
@@ -177,6 +178,9 @@ if uploaded_file is not None and st.button("Process Video"):
                     with st.spinner(f"Summarizing content using {model_name}..."):
                         try:
                             summary = summarize_text(extracted_text, model_name, huggingface_api_token)
+                            # prompt = """
+                            #     This is the summary of this video : {summary}
+                            #     """
                             st.session_state.summary = summary
                         except Exception as e:
                             st.error(f"Error in summarization: {str(e)}")
