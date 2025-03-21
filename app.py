@@ -139,12 +139,55 @@ def summarize_text(text, model_name, huggingface_api_token):
     result = summary_chain.run(text=text)
     return result
 
+# Direct summarization function
+def report_generation(text, model_name, huggingface_api_token, github_url, github_pat):
+    # Set the correct environment variable for Hugging Face
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
+    
+    # Initialize the language model
+    llm = HuggingFaceHub(
+        repo_id=model_name,
+        huggingfacehub_api_token=huggingface_api_token,
+        model_kwargs={
+            "temperature": 0.3,
+            "max_length": 1024,
+            "max_new_tokens": 512
+        }
+    )
+    
+    res = get_github_content(github_url, github_pat)
+    
+    # Create a summarization prompt
+    report_generation_prompt_template = """
+    You are a expert in code review. Your task is code review and genarte a report based on the Meeting discussion and Github code.Use the following data to generate the report.Report should be well structure and you can metion the code where need to improve or change:
+    
+    Meeeting Discussion Summary:
+    {text}
+    
+    Github Code:
+    {res}
+    
+    Report:
+    """
+    
+    # Create LLM chain for summarization
+    report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res"])
+    report_generation_chain = LLMChain(llm=llm, prompt=report_generation)
+    
+    # Generate summary
+    result = report_generation_chain.run(text=text, res = res)
+    print(result)
+    return result
+
 # Sidebar for API key and model inputs
 with st.sidebar:
     st.header("Configuration")
     huggingface_api_token = st.text_input("Enter Hugging Face API Token", type="password")
     model_name = st.text_input("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", 
                                value="mistralai/Mistral-7B-Instruct-v0.2")
+    github_url = st.text_input("Enter your github url")
+    github_pat = st.text_input("Enter your personal access token")
+    
     
     st.markdown("---")
     st.markdown("### Instructions")
@@ -163,6 +206,11 @@ if uploaded_file is not None and st.button("Process Video"):
         st.error("Please enter your Hugging Face API token in the sidebar")
     elif not model_name:
         st.error("Please enter a model name in the sidebar")
+    elif not github_url:
+        st.error("Please enter a Github url in the sidebar")
+    elif not github_pat:
+        st.error("Please enter a Github Personal Access token in the sidebar")
+    
     else:
         with st.spinner("Processing video..."):
             try:
@@ -171,17 +219,18 @@ if uploaded_file is not None and st.button("Process Video"):
                 
                 # Transcribe audio to text
                 extracted_text = speech_to_text(audio_path)
-                st.session_state.extracted_text = extracted_text
+                # st.session_state.extracted_text = extracted_text
                 
                 if extracted_text and not extracted_text.startswith("Error:"):
                     # Summarize text
                     with st.spinner(f"Summarizing content using {model_name}..."):
                         try:
                             summary = summarize_text(extracted_text, model_name, huggingface_api_token)
+                            res = report_generation(summary, model_name, huggingface_api_token, github_url, github_pat)
                             # prompt = """
                             #     This is the summary of this video : {summary}
                             #     """
-                            st.session_state.summary = summary
+                            st.session_state.summary = res
                         except Exception as e:
                             st.error(f"Error in summarization: {str(e)}")
                             st.error("Please verify your API token and model name are correct.")
