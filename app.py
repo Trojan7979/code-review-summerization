@@ -6,7 +6,7 @@ import speech_recognition as sr
 from langchain_community.llms import HuggingFaceHub
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-from GitHub_integration import get_github_content
+from github_integration import get_github_content
 
 # Set page configuration
 st.set_page_config(page_title="Video Text Extractor & Summarizer", layout="wide")
