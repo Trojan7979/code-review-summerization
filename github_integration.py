@@ -30,7 +30,7 @@ TOKEN = os.getenv('GITHUB_TOKEN', 'default_token_here')
 if TOKEN == 'default_token_here':
     raise EnvironmentError("GITHUB_TOKEN environment variable not set.")
 
-headers = {"Authorization": f"token {TOKEN}"}
+headers = ""
 
 def download_file(url, target_path):
     response = requests.get(url, headers=headers)
@@ -441,7 +441,12 @@ def is_allowed_filetype(filename):
 
     return any(filename.endswith(ext) for ext in allowed_extensions)
 
-def get_github_content(url):
+def get_github_content(url, token):
+        
+        try:
+            headers = {"Authorization": f"token {token}"}
+        except Exception as e:
+            print(e)
 
         try:
             if "github.com" in url:
@@ -458,5 +463,5 @@ def get_github_content(url):
             raise  # Re-raise the exception for debugging purposes
 
 if __name__ == "__main__":
-    res = get_github_content("https://github.com/Trojan7979/code-review-summerization")
+    res = get_github_content("https://github.com/Trojan7979/code-review-summerization/main", "")
     print(res)
