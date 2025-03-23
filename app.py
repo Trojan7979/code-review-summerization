@@ -9,11 +9,11 @@ from langchain.prompts import PromptTemplate
 from github_integration import get_github_content
 
 # Set page configuration
-st.set_page_config(page_title="Video Text Extractor & Summarizer", layout="wide")
+st.set_page_config(page_title="AI-Powered Code Review Summerization from Meeting Recordings", layout="wide")
 
 # App title and description
-st.title("Video Text Extractor & Summarizer")
-st.write("Upload a video to extract and summarize spoken content")
+st.title("AI-Powered Code Review Summerization from Meeting Recordings")
+st.write("Upload a video to extract and summarize spoken content and generate a report")
 
 # Initialize session state variables if they don't exist
 if 'extracted_text' not in st.session_state:
@@ -111,9 +111,10 @@ def summarize_text(text, model_name, huggingface_api_token):
     # Set the correct environment variable for Hugging Face
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
     
-    # Initialize the language model
+    # Initializing the language model
     llm = HuggingFaceHub(
         repo_id=model_name,
+
         huggingfacehub_api_token=huggingface_api_token,
         model_kwargs={
             "temperature": 0.3,
@@ -122,7 +123,7 @@ def summarize_text(text, model_name, huggingface_api_token):
         }
     )
     
-    # Create a summarization prompt
+    # Creates a summarization prompt
     summarize_prompt_template = """
     Summarize the following text in a concise and informative way:
     
@@ -131,11 +132,11 @@ def summarize_text(text, model_name, huggingface_api_token):
     Summary:
     """
     
-    # Create LLM chain for summarization
+    # Creates LLM chain for summarization
     summarize_prompt = PromptTemplate(template=summarize_prompt_template, input_variables=["text"])
     summary_chain = LLMChain(llm=llm, prompt=summarize_prompt)
     
-    # Generate summary
+    # Generating summary
     result = summary_chain.run(text=text)
     return result
 
@@ -144,7 +145,7 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     # Set the correct environment variable for Hugging Face
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
     
-    # Initialize the language model
+    # Initializing the language model
     llm = HuggingFaceHub(
         repo_id=model_name,
         huggingfacehub_api_token=huggingface_api_token,
@@ -155,36 +156,48 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
         }
     )
     
-    res = get_github_content(github_url, github_pat)
+    res, contributors_response = get_github_content(github_url, github_pat)
     
-    # Create a summarization prompt
+   # Defining the prompt template with a clear separator
     report_generation_prompt_template = """
-    You are a expert in code review. Your task is code review and genarte a report based on the Meeting discussion and Github code.Use the following data to generate the report.Report should be well structure and you can metion the code where need to improve or change:
-    
-    Meeeting Discussion Summary:
+    You are an expert code reviewer. Your task is to generate a very detailed report based on the Meeting discussion and Github code provided.
+    The report should be well-structured and should highlight areas where the code needs improvement or changes.
+    Also assign the tasks to developers who are working on their repository and who will be liable to make the changes as following, after the code review and check the meeting discussion if there is any developer being mentioned.
+    If there exist no such mention, then assign the task to the GitHub contributor. Make this task section after this report. Generate the report in markdown format.
+
+    Meeting Discussion:
     {text}
-    
-    Github Code:
+
+    Github Code Summary:
     {res}
-    
-    Report:
+
+    REPORT:
     """
-    
-    # Create LLM chain for summarization
-    report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res"])
-    report_generation_chain = LLMChain(llm=llm, prompt=report_generation)
-    
-    # Generate summary
-    result = report_generation_chain.run(text=text, res = res)
-    print(result)
+
+    # Create prompt template
+    report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res", "contributors_response"])
+
+    # Create LLM chain with return_only_outputs=True
+    report_generation_chain = LLMChain(
+        llm=llm, 
+        prompt=report_generation
+    )
+
+    # Generate report - this will return only the output
+    raw_result = report_generation_chain.run(text=text, res=res, contributors_response=contributors_response)
+    if "REPORT:" in raw_result:
+        result = raw_result.split("REPORT:")[1].strip()
+    else:
+        result = raw_result
     return result
 
 # Sidebar for API key and model inputs
 with st.sidebar:
     st.header("Configuration")
     huggingface_api_token = st.text_input("Enter Hugging Face API Token", type="password")
-    model_name = st.text_input("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", 
-                               value="mistralai/Mistral-7B-Instruct-v0.2")
+    model_names = ["mistralai/Mistral-7B-Instruct-v0.2", "meta-llama/Llama-3.2-3B-Instruct"] 
+    model_name = st.selectbox("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", model_names)
+    
     github_url = st.text_input("Enter your github url")
     github_pat = st.text_input("Enter your personal access token")
     
@@ -219,7 +232,7 @@ if uploaded_file is not None and st.button("Process Video"):
                 
                 # Transcribe audio to text
                 extracted_text = speech_to_text(audio_path)
-                # st.session_state.extracted_text = extracted_text
+                st.session_state.extracted_text = extracted_text
                 
                 if extracted_text and not extracted_text.startswith("Error:"):
                     # Summarize text

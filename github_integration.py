@@ -13,7 +13,7 @@ from rich import print
 import xml.etree.ElementTree as ET
 load_dotenv()
 
-EXCLUDED_DIRS = ["dist", "node_modules", ".git", "__pycache__"]  # Add any other directories to exclude here
+EXCLUDED_DIRS = ["dist", "node_modules", ".git", "__pycache__", "README.md"]  # Add any other directories to exclude here
 
 def safe_file_read(filepath, fallback_encoding='latin1'):
     try:
@@ -116,12 +116,15 @@ def process_github_repo(repo_url):
             subdirectory = "/".join(repo_url_parts[4:])
     
     contents_url = f"{api_base_url}{repo_name}/contents"
+    contributors_url = f"{api_base_url}{repo_name}/contributors"
+
     if subdirectory:
         contents_url = f"{contents_url}/{subdirectory}"
     if branch_or_tag:
         contents_url = f"{contents_url}?ref={branch_or_tag}"
 
     repo_content = [f'<source type="github_repository" url="{repo_url}">']
+    contributors_response = get_contributors(contributors_url)
 
     def process_directory(url, repo_content):
         response = requests.get(url, headers=headers)
@@ -155,7 +158,7 @@ def process_github_repo(repo_url):
     repo_content.append('</source>')
     print("All files processed.")
 
-    return "\n".join(repo_content)
+    return "\n".join(repo_content), contributors_response
 
 def extract_links(input_file, output_file):
     url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
@@ -174,7 +177,6 @@ def preprocess_text(input_file, output_file):
 
     def process_text(text):
         text = re.sub(r"[\n\r]+", "\n", text)
-        # Update the following line to include apostrophes and quotation marks
         text = re.sub(r"[^a-zA-Z0-9\s_.,!?:;@#$%^&*()+\-=[\]{}|\\<>`~'\"/]+", "", text)
         text = re.sub(r"\s+", " ", text)
         text = text.lower()
@@ -183,7 +185,7 @@ def preprocess_text(input_file, output_file):
         return " ".join(words)
 
     try:
-        # Try to parse the input as XML
+        # Parsing the input as XML
         root = ET.fromstring(input_text)
 
         # Process text content while preserving XML structure
@@ -193,7 +195,7 @@ def preprocess_text(input_file, output_file):
             if elem.tail:
                 elem.tail = process_text(elem.tail)
 
-        # Write the processed XML to the output file
+        # The processed XML to the output file
         tree = ET.ElementTree(root)
         tree.write(output_file, encoding="utf-8", xml_declaration=True)
         print("Text preprocessing completed with XML structure preserved.")
@@ -441,6 +443,13 @@ def is_allowed_filetype(filename):
 
     return any(filename.endswith(ext) for ext in allowed_extensions)
 
+def get_contributors(url):
+
+    import requests
+    response = requests.request("GET", url, headers=headers)
+    
+    return response.text
+
 def get_github_content(url, token):
         
         try:
@@ -455,13 +464,14 @@ def get_github_content(url, token):
                 elif "/issues/" in url:
                     final_output = process_github_issue(url)
                 else:
-                    final_output = process_github_repo(url)
+                    final_output, contributors_response = process_github_repo(url)
                     
-            return final_output
+            return final_output, contributors_response
         
         except Exception as e:
             raise  # Re-raise the exception for debugging purposes
 
 if __name__ == "__main__":
-    res = get_github_content("https://github.com/Trojan7979/code-review-summerization/main", "")
+    key = os.getenv("GITHUB_TOKEN")
+    res = get_github_content("https://github.com/Trojan7979/code-review-summerization/pull", key)
     print(res)
