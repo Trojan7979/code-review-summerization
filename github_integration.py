@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 import requests
 from urllib.parse import urljoin, urlparse
 from PyPDF2 import PdfReader
@@ -11,7 +10,6 @@ import nbformat
 from nbconvert import PythonExporter
 from rich import print
 import xml.etree.ElementTree as ET
-load_dotenv()
 
 EXCLUDED_DIRS = ["dist", "node_modules", ".git", "__pycache__", "README.md"]  # Add any other directories to exclude here
 
@@ -26,9 +24,7 @@ def safe_file_read(filepath, fallback_encoding='latin1'):
 nltk.download("stopwords", quiet=True)
 stop_words = set(stopwords.words("english"))
 
-TOKEN = os.getenv('GITHUB_TOKEN', 'default_token_here')
-if TOKEN == 'default_token_here':
-    raise EnvironmentError("GITHUB_TOKEN environment variable not set.")
+TOKEN = ""
 
 headers = ""
 
@@ -453,6 +449,7 @@ def get_contributors(url):
 def get_github_content(url, token):
         
         try:
+            TOKEN = token
             headers = {"Authorization": f"token {token}"}
         except Exception as e:
             print(e)
