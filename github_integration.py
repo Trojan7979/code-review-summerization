@@ -472,6 +472,6 @@ def get_github_content(url, token):
             raise  # Re-raise the exception for debugging purposes
 
 if __name__ == "__main__":
-    key = os.getenv("GITHUB_TOKEN")
-    res = get_github_content("https://github.com/Trojan7979/code-review-summerization/pull", key)
+    # key = os.getenv("GITHUB_TOKEN")
+    res = get_github_content("https://github.com/Trojan7979/code-review-summerization/pull", "")
     print(res)

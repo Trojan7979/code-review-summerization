@@ -168,14 +168,14 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     Meeting Discussion:
     {text}
 
-    Github Code Summary:
+    Github Code:
     {res}
 
-    REPORT:
+    Report:
     """
 
     # Create prompt template
-    report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res", "contributors_response"])
+    report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res"])
 
     # Create LLM chain with return_only_outputs=True
     report_generation_chain = LLMChain(
@@ -184,9 +184,9 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     )
 
     # Generate report - this will return only the output
-    raw_result = report_generation_chain.run(text=text, res=res, contributors_response=contributors_response)
-    if "REPORT:" in raw_result:
-        result = raw_result.split("REPORT:")[1].strip()
+    raw_result = report_generation_chain.run(text=text, res=res)
+    if "Report:" in raw_result:
+        result = raw_result.split("Report:")[1].strip()
     else:
         result = raw_result
     return result
