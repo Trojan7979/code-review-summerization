@@ -47,16 +47,14 @@ def extract_audio(video_file):
         # Close video file before trying to delete it
         video.close()
         
-        # Try to delete the video file, but don't raise an error if it fails
         try:
             os.unlink(video_path)
         except (PermissionError, OSError):
-            # We'll leave cleanup to the OS later if we can't delete now
             pass
         
         return audio_path
+    
     except Exception as e:
-        # Make sure to close the video in case of any errors
         try:
             video.close()
         except:
@@ -95,13 +93,11 @@ def speech_to_text(audio_path):
             
             offset += chunk_duration
     
-    # Try to delete the audio file, but don't raise an error if it fails
     try:
         # Close any AudioFileClip that might be open
         audio_clip.close()
         os.unlink(audio_path)
     except (PermissionError, OSError):
-        # We'll leave cleanup to the OS later if we can't delete now
         pass
     
     return full_text.strip()
@@ -142,7 +138,6 @@ def summarize_text(text, model_name, huggingface_api_token):
 
 # Direct summarization function
 def report_generation(text, model_name, huggingface_api_token, github_url, github_pat):
-    # Set the correct environment variable for Hugging Face
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
     
     # Initializing the language model
@@ -158,12 +153,11 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     
     res, contributors_response = get_github_content(github_url, github_pat)
     
-   # Defining the prompt template with a clear separator
     report_generation_prompt_template = """
     You are an expert code reviewer. Your task is to generate a very detailed report based on the Meeting discussion and Github code provided.
     The report should be well-structured and should highlight areas where the code needs improvement or changes.
     Also assign the tasks to developers who are working on their repository and who will be liable to make the changes as following, after the code review and check the meeting discussion if there is any developer being mentioned.
-    If there exist no such mention, then assign the task to the GitHub contributor. Make this task section after this report. Generate the report in markdown format.
+    If there exist no such mention, don't assign tasks to anyone. Make this task section after this report. Generate the report in markdown format.
 
     Meeting Discussion:
     {text}
@@ -177,7 +171,6 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     # Create prompt template
     report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res"])
 
-    # Create LLM chain with return_only_outputs=True
     report_generation_chain = LLMChain(
         llm=llm, 
         prompt=report_generation
@@ -254,7 +247,7 @@ if uploaded_file is not None and st.button("Process Video"):
 
 # Display results in tabs
 if st.session_state.extracted_text or st.session_state.summary:
-    tab1, tab2 = st.tabs(["Extracted Text", "Summary"])
+    tab1, tab2 = st.tabs(["Extracted Text", "Report"])
     
     with tab1:
         st.subheader("Extracted Text")
