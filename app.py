@@ -121,7 +121,7 @@ def summarize_text(text, model_name, huggingface_api_token):
     
     # Creates a summarization prompt
     summarize_prompt_template = """
-    Summarize the following text in a concise and informative way:
+    Refine the following text in a concise and informative way:
     
     {text}
     
@@ -155,9 +155,10 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     
     report_generation_prompt_template = """
     You are an expert code reviewer. Your task is to generate a very detailed report based on the Meeting discussion and Github code provided.
+    Always try to find the context on the GitHub code with the code problem that is discussed in the meeting.
     The report should be well-structured and should highlight areas where the code needs improvement or changes.
     Also assign the tasks to developers who are working on their repository and who will be liable to make the changes as following, after the code review and check the meeting discussion if there is any developer being mentioned.
-    If there exist no such mention, don't assign tasks to anyone. Make this task section after this report. Generate the report in markdown format.
+    If there exist no such mention, don't assign tasks to anyone. Make this task section after this report. Generate the report in markdown format. Make this report very attractive, informative, detailed, and complete.
 
     Meeting Discussion:
     {text}
@@ -178,6 +179,7 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
 
     # Generate report - this will return only the output
     raw_result = report_generation_chain.run(text=text, res=res)
+
     if "Report:" in raw_result:
         result = raw_result.split("Report:")[1].strip()
     else:
@@ -187,21 +189,26 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
 # Sidebar for API key and model inputs
 with st.sidebar:
     st.header("Configuration")
-    huggingface_api_token = st.text_input("Enter Hugging Face API Token", type="password")
-    model_names = ["mistralai/Mistral-7B-Instruct-v0.2", "meta-llama/Llama-3.2-3B-Instruct"] 
-    model_name = st.selectbox("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", model_names)
+    huggingface_api_token = st.text_input("Enter Hugging Face API Token", type="password", placeholder="hf_xxxxxxxxxxxxxxxxxxx")
+    model_names = ["----------Select Model----------", "mistralai/Mistral-7B-Instruct-v0.3", "meta-llama/Llama-3.2-3B-Instruct"] 
+    model_name = st.selectbox("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", model_names, index=0)
     
-    github_url = st.text_input("Enter your github url")
-    github_pat = st.text_input("Enter your personal access token")
+    github_url = st.text_input("Enter your github url", placeholder="https://github.com/{user}/{repo_name}")
+    github_branch = st.text_input("Enter you repository path", placeholder="main/path")
+    github_url = f"{github_url}/{github_branch}"
+    github_pat = st.text_input("Enter your personal access token", placeholder= "github_pat_xxxxxxxxxx")
     
     
     st.markdown("---")
     st.markdown("### Instructions")
     st.markdown("1. Enter your Hugging Face API token")
     st.markdown("2. Enter the model name to use for summarization")
-    st.markdown("3. Upload a video file")
-    st.markdown("4. Click 'Process Video' to extract text")
-    st.markdown("5. The extracted text and summary will appear below")
+    st.markdown("3. Enter your GitHub url")
+    st.markdown("4. Enter your GitHub Repository path")
+    st.markdown("5. Enter your GitHub Personal Access Token")
+    st.markdown("6. Upload a video file")
+    st.markdown("7. Click 'Process Video' to extract text")
+    st.markdown("8. The extracted text and summary will appear below")
 
 # File uploader
 uploaded_file = st.file_uploader("Upload a video file", type=['mp4', 'avi', 'mov', 'mkv'])
@@ -263,7 +270,7 @@ if st.session_state.extracted_text or st.session_state.summary:
             )
     
     with tab2:
-        st.subheader("Summary")
+        st.subheader("Generated Report")
         st.markdown(st.session_state.summary)
         
         # Add download button for summary
