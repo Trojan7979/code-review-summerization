@@ -113,7 +113,7 @@ def refine_text(text, model_name, huggingface_api_token):
 
         huggingfacehub_api_token=huggingface_api_token,
         model_kwargs={
-            "temperature": 0.4,
+            "temperature": 0.3,
             "max_length": 1024,
             "max_new_tokens": 512
         }
@@ -145,7 +145,7 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
         repo_id=model_name,
         huggingfacehub_api_token=huggingface_api_token,
         model_kwargs={
-            "temperature": 0.4,
+            "temperature": 0.3,
             "max_length": 1024,
             "max_new_tokens": 512
         }
