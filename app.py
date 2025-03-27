@@ -103,7 +103,7 @@ def speech_to_text(audio_path):
     return full_text.strip()
 
 # Direct summarization function
-def summarize_text(text, model_name, huggingface_api_token):
+def refine_text(text, model_name, huggingface_api_token):
     # Set the correct environment variable for Hugging Face
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
     
@@ -113,7 +113,7 @@ def summarize_text(text, model_name, huggingface_api_token):
 
         huggingfacehub_api_token=huggingface_api_token,
         model_kwargs={
-            "temperature": 0.3,
+            "temperature": 0.4,
             "max_length": 1024,
             "max_new_tokens": 512
         }
@@ -125,7 +125,7 @@ def summarize_text(text, model_name, huggingface_api_token):
     
     {text}
     
-    Summary:
+    Refined text:
     """
     
     # Creates LLM chain for summarization
@@ -145,7 +145,7 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
         repo_id=model_name,
         huggingfacehub_api_token=huggingface_api_token,
         model_kwargs={
-            "temperature": 0.3,
+            "temperature": 0.4,
             "max_length": 1024,
             "max_new_tokens": 512
         }
@@ -221,6 +221,8 @@ if uploaded_file is not None and st.button("Process Video"):
         st.error("Please enter a model name in the sidebar")
     elif not github_url:
         st.error("Please enter a Github url in the sidebar")
+    elif not github_branch:
+        st.error("Please enter a Github Repository path")
     elif not github_pat:
         st.error("Please enter a Github Personal Access token in the sidebar")
     
@@ -238,7 +240,7 @@ if uploaded_file is not None and st.button("Process Video"):
                     # Summarize text
                     with st.spinner(f"Summarizing content using {model_name}..."):
                         try:
-                            summary = summarize_text(extracted_text, model_name, huggingface_api_token)
+                            summary = refine_text(extracted_text, model_name, huggingface_api_token)
                             res = report_generation(summary, model_name, huggingface_api_token, github_url, github_pat)
                             # prompt = """
                             #     This is the summary of this video : {summary}
@@ -276,8 +278,8 @@ if st.session_state.extracted_text or st.session_state.summary:
         # Add download button for summary
         if st.session_state.summary:
             st.download_button(
-                label="Download Summary",
+                label="Download Report",
                 data=st.session_state.summary,
-                file_name="summary.txt",
+                file_name="Report.txt",
                 mime="text/plain"
             )
