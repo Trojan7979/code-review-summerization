@@ -9,10 +9,10 @@ from langchain.prompts import PromptTemplate
 from github_integration import get_github_content
 
 # Set page configuration
-st.set_page_config(page_title="AI-Powered Code Review Summerization from Meeting Recordings", layout="wide")
+st.set_page_config(page_title="AI-Powered Code Review Summarization from Meeting Recordings", layout="wide")
 
 # App title and description
-st.title("AI-Powered Code Review Summerization from Meeting Recordings")
+st.title("AI-Powered Code Review Summarization from Meeting Recordings")
 st.write("Upload a video to extract and summarize spoken content and generate a report")
 
 # Initialize session state variables if they don't exist
