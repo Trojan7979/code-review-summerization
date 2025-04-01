@@ -50,8 +50,7 @@ def extract_audio(video_file):
         try:
             os.unlink(video_path)
         except (PermissionError, OSError):
-            pass
-        
+            pass 
         return audio_path
     
     except Exception as e:
@@ -186,11 +185,12 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
         result = raw_result
     return result
 
+
 # Sidebar for API key and model inputs
 with st.sidebar:
     st.header("Configuration")
     huggingface_api_token = st.text_input("Enter Hugging Face API Token", type="password", placeholder="hf_xxxxxxxxxxxxxxxxxxx")
-    model_names = ["----------Select Model----------", "mistralai/Mistral-7B-Instruct-v0.3", "meta-llama/Llama-3.2-3B-Instruct"] 
+    model_names = ["------------Select Model-----------", "mistralai/Mistral-7B-Instruct-v0.3", "meta-llama/Llama-3.2-3B-Instruct"] 
     model_name = st.selectbox("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", model_names, index=0)
     
     github_url = st.text_input("Enter your github url", placeholder="https://github.com/{user}/{repo_name}")
@@ -256,22 +256,9 @@ if uploaded_file is not None and st.button("Process Video"):
 
 # Display results in tabs
 if st.session_state.extracted_text or st.session_state.summary:
-    tab1, tab2 = st.tabs(["Extracted Text", "Report"])
+    tab1, tab2 = st.tabs(["Report", "Extracted Text"])
     
     with tab1:
-        st.subheader("Extracted Text")
-        st.text_area("Full Transcript", st.session_state.extracted_text, height=300)
-        
-        # Add download button for text
-        if st.session_state.extracted_text:
-            st.download_button(
-                label="Download Transcript",
-                data=st.session_state.extracted_text,
-                file_name="transcript.txt",
-                mime="text/plain"
-            )
-    
-    with tab2:
         st.subheader("Generated Report")
         st.markdown(st.session_state.summary)
         
@@ -281,5 +268,18 @@ if st.session_state.extracted_text or st.session_state.summary:
                 label="Download Report",
                 data=st.session_state.summary,
                 file_name="Report.txt",
+                mime="text/plain"
+            )
+            
+    with tab2:
+        st.subheader("Extracted Text")
+        st.text_area("Full Transcript", st.session_state.extracted_text, height=300)
+        
+        # Add download button for text
+        if st.session_state.extracted_text:
+            st.download_button(
+                label="Download Transcript",
+                data=st.session_state.extracted_text,
+                file_name="transcript.txt",
                 mime="text/plain"
             )
