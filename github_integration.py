@@ -470,5 +470,5 @@ def get_github_content(url, token):
 
 if __name__ == "__main__":
     # key = os.getenv("GITHUB_TOKEN")
-    res = get_github_content("https://github.com/Trojan7979/code-review-summerization/pull", "")
+    res, res1 = get_github_content("https://github.com/Trojan7979/nested-file-test", "")
     print(res)
