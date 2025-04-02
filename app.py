@@ -7,6 +7,8 @@ from langchain_community.llms import HuggingFaceHub
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from github_integration import get_github_content
+from llm import message_response, speech_to_text_llm
+
 
 # Set page configuration
 st.set_page_config(page_title="AI-Powered Code Review Summarization from Meeting Recordings", layout="wide")
@@ -102,57 +104,29 @@ def speech_to_text(audio_path):
     return full_text.strip()
 
 # Direct summarization function
-def refine_text(text, model_name, huggingface_api_token):
-    # Set the correct environment variable for Hugging Face
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
+def refine_text(text, model_name, groq_api_token):
     
-    # Initializing the language model
-    llm = HuggingFaceHub(
-        repo_id=model_name,
+    try:
+        
+        # Creates a summarization prompt
+        summarize_prompt_template = f"""
+        Refine the following text in a concise and informative way:
+        
+        {text}
+        
+        Refined text:
+        """
+        res = message_response(summarize_prompt_template, groq_api_token, model_name)
+        return res
 
-        huggingfacehub_api_token=huggingface_api_token,
-        model_kwargs={
-            "temperature": 0.3,
-            "max_length": 1024,
-            "max_new_tokens": 512
-        }
-    )
-    
-    # Creates a summarization prompt
-    summarize_prompt_template = """
-    Refine the following text in a concise and informative way:
-    
-    {text}
-    
-    Refined text:
-    """
-    
-    # Creates LLM chain for summarization
-    summarize_prompt = PromptTemplate(template=summarize_prompt_template, input_variables=["text"])
-    summary_chain = LLMChain(llm=llm, prompt=summarize_prompt)
-    
-    # Generating summary
-    result = summary_chain.run(text=text)
-    return result
+    except Exception as e:
+        raise RuntimeError(f"Failed to access model: {str(e)}. Verify model name and API token.")
 
 # Direct summarization function
-def report_generation(text, model_name, huggingface_api_token, github_url, github_pat):
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_api_token
-    
-    # Initializing the language model
-    llm = HuggingFaceHub(
-        repo_id=model_name,
-        huggingfacehub_api_token=huggingface_api_token,
-        model_kwargs={
-            "temperature": 0.3,
-            "max_length": 1024,
-            "max_new_tokens": 512
-        }
-    )
-    
+def report_generation(text, github_url, github_pat, groq_api_token, model_name):   
     res, contributors_response = get_github_content(github_url, github_pat)
     
-    report_generation_prompt_template = """
+    report_generation_prompt_template = f"""
     You are an expert code reviewer. Your task is to generate a very detailed report based on the Meeting discussion and Github code provided.
     Always try to find the context on the GitHub code with the code problem that is discussed in the meeting.
     The report should be well-structured and should highlight areas where the code needs improvement or changes.
@@ -165,47 +139,41 @@ def report_generation(text, model_name, huggingface_api_token, github_url, githu
     Github Code:
     {res}
 
-    Report:
-    """
-
-    # Create prompt template
-    report_generation = PromptTemplate(template=report_generation_prompt_template, input_variables=["text", "res"])
-
-    report_generation_chain = LLMChain(
-        llm=llm, 
-        prompt=report_generation
-    )
-
-    # Generate report - this will return only the output
-    raw_result = report_generation_chain.run(text=text, res=res)
-
-    if "Report:" in raw_result:
-        result = raw_result.split("Report:")[1].strip()
-    else:
-        result = raw_result
-    return result
+    Report:"""
+    raw_result = message_response(report_generation_prompt_template, groq_api_token, model_name)
+    return raw_result
 
 
 # Sidebar for API key and model inputs
 with st.sidebar:
     st.header("Configuration")
-    huggingface_api_token = st.text_input("Enter Hugging Face API Token", type="password", placeholder="hf_xxxxxxxxxxxxxxxxxxx")
-    model_names = ["------------Select Model-----------", "mistralai/Mistral-7B-Instruct-v0.3", "meta-llama/Llama-3.2-3B-Instruct"] 
-    model_name = st.selectbox("Enter Model Name (e.g., mistralai/Mistral-7B-Instruct-v0.2)", model_names, index=0)
+    groq_api_token = st.text_input("Enter Groq API Token", type="password", placeholder="gsk_xxxxxxxxxxxxxx")
     
+    report_generation_models = ["------------Select Model-----------", "deepseek-r1-distill-llama-70b"]
+    report_generation_model = st.selectbox("Enter Model Name (e.g., deepseek-r1-distill-llama-70b)", report_generation_models, index=0)
+
     github_url = st.text_input("Enter your github url", placeholder="https://github.com/{user}/{repo_name}")
     github_branch = st.text_input("Enter you repository path", placeholder="main/path")
     github_url = f"{github_url}/{github_branch}"
-    github_pat = st.text_input("Enter your personal access token", placeholder= "github_pat_xxxxxxxxxx")
-    
-    
+
+    # Radio button selection
+    repo_type = st.radio(
+        "Choose your repository type:",
+        ("Public Repo", "Private Repo")
+    )
+
+    if repo_type == "Private Repo":
+        github_pat = st.text_input("Enter your personal access token", placeholder= "github_pat_xxxxxxxxxx")
+    else:
+        github_pat = ""
+
     st.markdown("---")
     st.markdown("### Instructions")
-    st.markdown("1. Enter your Hugging Face API token")
-    st.markdown("2. Enter the model name to use for summarization")
+    st.markdown("1. Enter your Groq API token")
+    st.markdown("2. Enter the model name")
     st.markdown("3. Enter your GitHub url")
     st.markdown("4. Enter your GitHub Repository path")
-    st.markdown("5. Enter your GitHub Personal Access Token")
+    st.markdown("5. If the repository is private then, enter your GitHub Personal Access Token")
     st.markdown("6. Upload a video file")
     st.markdown("7. Click 'Process Video' to extract text")
     st.markdown("8. The extracted text and summary will appear below")
@@ -215,16 +183,15 @@ uploaded_file = st.file_uploader("Upload a video file", type=['mp4', 'avi', 'mov
 
 # Process button
 if uploaded_file is not None and st.button("Process Video"):
-    if not huggingface_api_token:
-        st.error("Please enter your Hugging Face API token in the sidebar")
-    elif not model_name:
+
+    if not groq_api_token:
+        st.error("Please enter your Groq API token")
+    elif not report_generation_model:
         st.error("Please enter a model name in the sidebar")
     elif not github_url:
         st.error("Please enter a Github url in the sidebar")
     elif not github_branch:
         st.error("Please enter a Github Repository path")
-    elif not github_pat:
-        st.error("Please enter a Github Personal Access token in the sidebar")
     
     else:
         with st.spinner("Processing video..."):
@@ -233,18 +200,15 @@ if uploaded_file is not None and st.button("Process Video"):
                 audio_path = extract_audio(uploaded_file)
                 
                 # Transcribe audio to text
-                extracted_text = speech_to_text(audio_path)
+                extracted_text = speech_to_text_llm(audio_path, groq_api_token)
                 st.session_state.extracted_text = extracted_text
                 
                 if extracted_text and not extracted_text.startswith("Error:"):
                     # Summarize text
-                    with st.spinner(f"Summarizing content using {model_name}..."):
+                    with st.spinner(f"Summarizing content using {report_generation_model}..."):
                         try:
-                            summary = refine_text(extracted_text, model_name, huggingface_api_token)
-                            res = report_generation(summary, model_name, huggingface_api_token, github_url, github_pat)
-                            # prompt = """
-                            #     This is the summary of this video : {summary}
-                            #     """
+                            summary = refine_text(extracted_text, report_generation_model, groq_api_token)
+                            res = report_generation(summary, github_url, github_pat, groq_api_token, report_generation_model)
                             st.session_state.summary = res
                         except Exception as e:
                             st.error(f"Error in summarization: {str(e)}")
