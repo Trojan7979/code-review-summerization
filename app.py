@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import tempfile
 import moviepy.editor as mp
-import speech_recognition as sr
 from langchain_community.llms import HuggingFaceHub
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
@@ -61,47 +60,6 @@ def extract_audio(video_file):
         except:
             pass
         raise e
-
-# Function to transcribe audio to text
-def speech_to_text(audio_path):
-    recognizer = sr.Recognizer()
-    
-    # Split audio into chunks to handle longer files
-    audio = sr.AudioFile(audio_path)
-    full_text = ""
-    
-    # Get audio duration before opening the file for processing
-    audio_duration = mp.AudioFileClip(audio_path).duration
-    audio_clip = mp.AudioFileClip(audio_path)
-    
-    with audio as source:
-        # Adjust for ambient noise
-        recognizer.adjust_for_ambient_noise(source)
-        
-        # Process audio in chunks to handle longer files
-        chunk_duration = 30  # seconds
-        offset = 0
-        
-        while offset < audio_duration:
-            audio_data = recognizer.record(source, duration=min(chunk_duration, audio_duration - offset))
-            try:
-                text = recognizer.recognize_google(audio_data)
-                full_text += text + " "
-            except sr.UnknownValueError:
-                full_text += "[inaudible] "
-            except sr.RequestError as e:
-                return f"Error: {e}"
-            
-            offset += chunk_duration
-    
-    try:
-        # Close any AudioFileClip that might be open
-        audio_clip.close()
-        os.unlink(audio_path)
-    except (PermissionError, OSError):
-        pass
-    
-    return full_text.strip()
 
 # Direct summarization function
 def refine_text(text, model_name, groq_api_token):

@@ -450,7 +450,7 @@ def get_github_content(url, token):
         
         try:
             TOKEN = token
-            headers = {"Authorization": f"token {token}"}
+            headers = {"Authorization": f"Bearer {token}", "Accept" : "application/vnd.github+json", "X-GitHub-Api-Version" : "2022-11-28"}
         except Exception as e:
             print(e)
 
@@ -470,5 +470,5 @@ def get_github_content(url, token):
 
 if __name__ == "__main__":
     # key = os.getenv("GITHUB_TOKEN")
-    res, res1 = get_github_content("https://github.com/Trojan7979/nested-file-test", "")
+    res, res1 = get_github_content("https://github.com/Trojan7979/html-portfolio", "")
     print(res)
