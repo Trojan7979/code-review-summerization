@@ -1,6 +1,15 @@
 from groq import Groq
 import os
 import re
+import google.generativeai as genai
+
+def get_response(msg, token, model):
+    genai.configure(api_key=token)
+    model = genai.GenerativeModel(model)
+
+    res = model.generate_content(msg)
+    return remove_markdown_tags(res.text)
+    
 
 def message_response(msg, token, model):
     client = Groq(api_key=token)
@@ -36,5 +45,9 @@ def speech_to_text_llm(audio_path, token):
 def remove_think_tags(text):
     return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
 
-if __name__ == "__main__":
-    print(message_response("Hi"))
+def remove_markdown_tags(text):
+    return re.sub(r'```markdown.*?```', '', text, flags=re.DOTALL).strip()
+
+# if __name__ == "__main__":
+#     res = get_response()
+#     print(res)

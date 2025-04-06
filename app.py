@@ -2,12 +2,8 @@ import streamlit as st
 import os
 import tempfile
 import moviepy.editor as mp
-from langchain_community.llms import HuggingFaceHub
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
 from github_integration import get_github_content
-from llm import message_response, speech_to_text_llm
-
+from llm import message_response, speech_to_text_llm, get_response
 
 # Set page configuration
 st.set_page_config(page_title="AI-Powered Code Review Summarization from Meeting Recordings", layout="wide")
@@ -62,7 +58,7 @@ def extract_audio(video_file):
         raise e
 
 # Direct summarization function
-def refine_text(text, model_name, groq_api_token):
+def refine_text(text, model_name, token, type):
     
     try:
         
@@ -74,14 +70,18 @@ def refine_text(text, model_name, groq_api_token):
         
         Refined text:
         """
-        res = message_response(summarize_prompt_template, groq_api_token, model_name)
+
+        if type == "Google":
+            res = get_response(summarize_prompt_template, token, model_name)
+        else:
+            res = message_response(summarize_prompt_template, token, model_name)
         return res
 
     except Exception as e:
         raise RuntimeError(f"Failed to access model: {str(e)}. Verify model name and API token.")
 
 # Direct summarization function
-def report_generation(text, github_url, github_pat, groq_api_token, model_name):   
+def report_generation(text, github_url, github_pat, token, model_name, type):   
     res, contributors_response = get_github_content(github_url, github_pat)
     
     report_generation_prompt_template = f"""
@@ -89,7 +89,7 @@ def report_generation(text, github_url, github_pat, groq_api_token, model_name):
     Always try to find the context on the GitHub code with the code problem that is discussed in the meeting.
     The report should be well-structured and should highlight areas where the code needs improvement or changes.
     Also assign the tasks to developers who are working on their repository and who will be liable to make the changes as following, after the code review and check the meeting discussion if there is any developer being mentioned.
-    If there exist no such mention, don't assign tasks to anyone. Make this task section after this report. Generate the report in markdown format. Make this report very attractive, informative, detailed, and complete.
+    If there exist no such mention, don't assign tasks to anyone. Make this task section after this report. Make this report very attractive, informative, detailed, and complete.
 
     Meeting Discussion:
     {text}
@@ -97,18 +97,38 @@ def report_generation(text, github_url, github_pat, groq_api_token, model_name):
     Github Code:
     {res}
 
-    Report:"""
-    raw_result = message_response(report_generation_prompt_template, groq_api_token, model_name)
-    return raw_result
+    Guidelines:
+    Just return only the report, don't return anything except the report.
+    Generate the report in markdown format only.
+    Don't mention any dates.
+    
+    """
+
+    if type == "Google":
+        result = get_response(report_generation_prompt_template, token, model_name)
+    else:
+        result = message_response(report_generation_prompt_template, token, model_name)
+    return result
 
 
 # Sidebar for API key and model inputs
 with st.sidebar:
     st.header("Configuration")
-    groq_api_token = st.text_input("Enter Groq API Token", type="password", placeholder="gsk_xxxxxxxxxxxxxx")
-    
-    report_generation_models = ["------------Select Model-----------", "deepseek-r1-distill-llama-70b"]
-    report_generation_model = st.selectbox("Enter Model Name (e.g., deepseek-r1-distill-llama-70b)", report_generation_models, index=0)
+
+    model_service_provider = st.radio(
+        "Choose your LLM service provider:",
+        ("Google", "Groq")
+    )
+    if model_service_provider == "Google":
+        llm_api_token = st.text_input("Enter Google API Token", type="password", placeholder="xxxxxxxxxxxxxx")
+        groq_voice_token = st.text_input("Enter Groq API Token to extract text",type="password", placeholder="gsk_xxxxxxxxxxxxxx")
+        report_generation_models = ["------------Select Model-----------", "gemini-2.5-pro-exp-03-25", "gemini-2.0-flash"]
+        report_generation_model = st.selectbox("Enter Model Name (e.g., gemini-2.5-pro-exp-03-25)", report_generation_models, index=0)
+    else:
+        llm_api_token = st.text_input("Enter Groq API Token", type="password", placeholder="gsk_xxxxxxxxxxxxxx")
+        groq_voice_token = llm_api_token
+        report_generation_models = ["------------Select Model-----------", "deepseek-r1-distill-llama-70b"]
+        report_generation_model = st.selectbox("Enter Model Name (e.g., deepseek-r1-distill-llama-70b)", report_generation_models, index=0)
 
     github_url = st.text_input("Enter your github url", placeholder="https://github.com/{user}/{repo_name}")
     github_branch = st.text_input("Enter you repository path", placeholder="main/path")
@@ -142,7 +162,7 @@ uploaded_file = st.file_uploader("Upload a video file", type=['mp4', 'avi', 'mov
 # Process button
 if uploaded_file is not None and st.button("Process Video"):
 
-    if not groq_api_token:
+    if not llm_api_token:
         st.error("Please enter your Groq API token")
     elif not report_generation_model:
         st.error("Please enter a model name in the sidebar")
@@ -158,15 +178,15 @@ if uploaded_file is not None and st.button("Process Video"):
                 audio_path = extract_audio(uploaded_file)
                 
                 # Transcribe audio to text
-                extracted_text = speech_to_text_llm(audio_path, groq_api_token)
+                extracted_text = speech_to_text_llm(audio_path, groq_voice_token)
                 st.session_state.extracted_text = extracted_text
                 
                 if extracted_text and not extracted_text.startswith("Error:"):
                     # Summarize text
                     with st.spinner(f"Summarizing content using {report_generation_model}..."):
                         try:
-                            summary = refine_text(extracted_text, report_generation_model, groq_api_token)
-                            res = report_generation(summary, github_url, github_pat, groq_api_token, report_generation_model)
+                            summary = refine_text(extracted_text, report_generation_model, llm_api_token, type=model_service_provider)
+                            res = report_generation(summary, github_url, github_pat, llm_api_token, report_generation_model, type=model_service_provider)
                             st.session_state.summary = res
                         except Exception as e:
                             st.error(f"Error in summarization: {str(e)}")
@@ -178,10 +198,9 @@ if uploaded_file is not None and st.button("Process Video"):
 
 # Display results in tabs
 if st.session_state.extracted_text or st.session_state.summary:
-    tab1, tab2 = st.tabs(["Report", "Extracted Text"])
+    tab1, tab2 = st.tabs(["Generated Report", "Extracted Text"])
     
     with tab1:
-        st.subheader("Generated Report")
         st.markdown(st.session_state.summary)
         
         # Add download button for summary
@@ -194,7 +213,6 @@ if st.session_state.extracted_text or st.session_state.summary:
             )
             
     with tab2:
-        st.subheader("Extracted Text")
         st.text_area("Full Transcript", st.session_state.extracted_text, height=300)
         
         # Add download button for text
